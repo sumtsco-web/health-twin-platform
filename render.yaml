@@ -1,0 +1,88 @@
+services:
+  # Risk Engine Service
+  - type: web
+    name: health-twin-risk-engine
+    runtime: python
+    repo: https://github.com/sumtsco-web/health-twin-platform
+    branch: main
+    rootDir: backend/services/risk-engine-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://healthtwin_user:DTCKW5feGKv55E2DwVRNYwUNn7hg8DOi@dpg-d4op1o3e5dus73ceace0-a/healthtwin
+      - key: PORT
+        value: 8005
+      - key: CORS_ORIGINS
+        value: '["https://health-twin-dashboard.vercel.app"]'
+
+  # User Service
+  - type: web
+    name: health-twin-user-service
+    runtime: node
+    repo: https://github.com/sumtsco-web/health-twin-platform
+    branch: main
+    rootDir: backend/services/user-service
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://healthtwin_user:DTCKW5feGKv55E2DwVRNYwUNn7hg8DOi@dpg-d4op1o3e5dus73ceace0-a/healthtwin
+      - key: JWT_SECRET
+        value: health-twin-jwt-secret-2024
+      - key: PORT
+        value: 8001
+      - key: CORS_ORIGIN
+        value: https://health-twin-dashboard.vercel.app
+      - key: NODE_ENV
+        value: production
+
+  # Auth Service
+  - type: web
+    name: health-twin-auth-service
+    runtime: node
+    repo: https://github.com/sumtsco-web/health-twin-platform
+    branch: main
+    rootDir: backend/services/auth-service
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://healthtwin_user:DTCKW5feGKv55E2DwVRNYwUNn7hg8DOi@dpg-d4op1o3e5dus73ceace0-a/healthtwin
+      - key: JWT_SECRET
+        value: health-twin-jwt-secret-2024
+      - key: JWT_EXPIRY
+        value: 7d
+      - key: PORT
+        value: 8002
+      - key: CORS_ORIGIN
+        value: https://health-twin-dashboard.vercel.app
+      - key: NODE_ENV
+        value: production
+
+  # PDF Service
+  - type: web
+    name: health-twin-pdf-service
+    runtime: node
+    repo: https://github.com/sumtsco-web/health-twin-platform
+    branch: main
+    rootDir: backend/services/pdf-service
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8006
+      - key: CORS_ORIGIN
+        value: https://health-twin-dashboard.vercel.app
+      - key: NODE_ENV
+        value: production
+
+databases:
+  - name: health-twin-db
+    databaseName: healthtwin
+    user: healthtwin_user
+    plan: free
