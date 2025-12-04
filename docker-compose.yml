@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # -------------------------------------------------------------------------
+  # PostgreSQL + TimescaleDB (User Data & Time-Series Vitals)
+  # -------------------------------------------------------------------------
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: healthtwin-timescaledb
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      POSTGRES_DB: healthtwin_core
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    networks:
+      - healthtwin-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d healthtwin_core"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------------------
+  # MongoDB (Unstructured Data - Logs, Raw Device Data)
+  # -------------------------------------------------------------------------
+  mongodb:
+    image: mongo:6.0
+    container_name: healthtwin-mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-admin123}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - healthtwin-network
+
+  # -------------------------------------------------------------------------
+  # Redis (Caching, Queues, Real-time)
+  # -------------------------------------------------------------------------
+  redis:
+    image: redis:7.0-alpine
+    container_name: healthtwin-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - healthtwin-network
+
+  # -------------------------------------------------------------------------
+  # API Gateway (Kong or simple Nginx for dev - using Kong here for scale)
+  # -------------------------------------------------------------------------
+  # For MVP dev simplicity, we might start with a simple Node.js gateway, 
+  # but keeping Kong in mind for the architecture. 
+  # For now, let's use a placeholder for the custom Gateway Service we will build.
+  
+  # -------------------------------------------------------------------------
+  # Message Queue (Kafka) - Optional for MVP start, but good to have
+  # -------------------------------------------------------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: healthtwin-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - healthtwin-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: healthtwin-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - healthtwin-network
+
+volumes:
+  timescaledb_data:
+  mongodb_data:
+  redis_data:
+
+networks:
+  healthtwin-network:
+    driver: bridge
