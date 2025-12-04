@@ -1,13 +1,9 @@
 import { Platform } from 'react-native';
 
-// Use 10.0.2.2 for Android Emulator, localhost for iOS Simulator
-const DEV_API_URL = Platform.select({
-    android: 'http://10.0.2.2:8005/api/v1',
-    ios: 'http://localhost:8005/api/v1',
-    default: 'http://localhost:8005/api/v1',
-});
+// Live Backend URL
+const LIVE_API_URL = 'https://health-twin-risk-engine-v2.onrender.com/api/v1';
 
-export const API_URL = DEV_API_URL;
+export const API_URL = LIVE_API_URL;
 
 export interface RiskResponse {
     risk_score: number;

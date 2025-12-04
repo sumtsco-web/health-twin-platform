@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import EmailService from '../services/email.service';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key';
 
@@ -14,12 +15,16 @@ export const register = async (req: Request, res: Response) => {
 
         // TODO: Create user in DB
 
+        // Send Welcome Email
+        await EmailService.sendWelcomeEmail(email, `${firstName} ${lastName}`);
+
         // Mock response
         res.status(201).json({
-            message: 'User registered successfully',
+            message: 'User registered successfully. Please check your email.',
             user: { email, firstName, lastName }
         });
     } catch (error) {
+        console.error("Registration error:", error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

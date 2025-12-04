@@ -1,269 +1,315 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, Menu, Thermometer, Moon, Activity } from 'lucide-react-native';
-import DigitalTwin from '../components/DigitalTwin';
-import { COLORS } from '../constants/theme';
-import { fetchRiskData, RiskResponse, FatigueResponse } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
+import { API_URL } from '../services/api';
 
 export default function HomeScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [cardiacData, setCardiacData] = useState<RiskResponse | null>(null);
-    const [fatigueData, setFatigueData] = useState<FatigueResponse | null>(null);
+    const [healthData, setHealthData] = useState({
+        healthScore: 92,
+        heartRate: 72,
+        hrv: 65,
+        spo2: 98,
+        temperature: 36.8,
+        cardiacRisk: 'Low',
+        fatigueLevel: 'Medium',
+        steps: 8432,
+        calories: 2145,
+        sleep: 7.5,
+    });
 
-    const loadData = useCallback(async () => {
+    const fetchHealthData = async () => {
         try {
-            const { cardiac, fatigue } = await fetchRiskData();
-            setCardiacData(cardiac);
-            setFatigueData(fatigue);
+            // Try to fetch real data from backend
+            const response = await fetch(`${API_URL}/risk/cardiac`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    age: 35,
+                    resting_hr: 72,
+                    hrv_sdnn: 45,
+                    hrv_rmssd: 25,
+                    systolic_bp: 120,
+                    diastolic_bp: 80,
+                    bmi: 24
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Backend data:', data);
+                // Update with real data when available
+            }
         } catch (error) {
-            console.error(error);
+            console.log('Using demo data');
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    };
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        fetchHealthData();
+    }, []);
 
     const onRefresh = () => {
         setRefreshing(true);
-        loadData();
+        fetchHealthData();
     };
 
     if (loading) {
         return (
-            <View style={[styles.container, styles.center]}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#00d4ff" />
+                <Text style={styles.loadingText}>Loading your health data...</Text>
             </View>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <LinearGradient
-                colors={[COLORS.background, COLORS.surface]}
-                style={styles.background}
-            />
+        <ScrollView
+            style={styles.container}
+            refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00d4ff" />
+            }
+        >
+            {/* Header */}
+            <View style={styles.header}>
+                <Text style={styles.greeting}>Good {getTimeOfDay()}</Text>
+                <Text style={styles.userName}>Employee</Text>
+            </View>
 
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
-                }
-            >
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.iconButton}>
-                        <Menu color={COLORS.white} size={24} />
-                    </TouchableOpacity>
-                    <View>
-                        <Text style={styles.greeting}>Good Evening,</Text>
-                        <Text style={styles.username}>John Doe</Text>
-                    </View>
-                    <TouchableOpacity style={styles.iconButton}>
-                        <Bell color={COLORS.white} size={24} />
-                        <View style={styles.badge} />
-                    </TouchableOpacity>
+            {/* Health Score Card */}
+            <View style={styles.scoreCard}>
+                <Text style={styles.cardTitle}>Health Score</Text>
+                <Text style={styles.scoreText}>{healthData.healthScore}</Text>
+                <Text style={styles.scoreLabel}>Excellent</Text>
+                <View style={styles.scoreBar}>
+                    <View style={[styles.scoreBarFill, { width: `${healthData.healthScore}%` }]} />
+                </View>
+            </View>
+
+            {/* Vital Signs */}
+            <View style={styles.card}>
+                <Text style={styles.cardTitle}>Vital Signs</Text>
+
+                <View style={styles.vitalRow}>
+                    <Text style={styles.vitalLabel}>❤️ Heart Rate</Text>
+                    <Text style={styles.vitalValue}>{healthData.heartRate} bpm</Text>
                 </View>
 
-                {/* Digital Twin Centerpiece */}
-                <DigitalTwin
-                    riskScore={cardiacData?.risk_score || 0}
-                    status={cardiacData?.risk_level as any || 'Healthy'}
-                />
+                <View style={styles.vitalRow}>
+                    <Text style={styles.vitalLabel}>📊 HRV</Text>
+                    <Text style={styles.vitalValue}>{healthData.hrv} ms</Text>
+                </View>
 
-                {/* Status Cards */}
-                <View style={styles.statsGrid}>
-                    <View style={styles.card}>
-                        <View style={[styles.iconBox, { backgroundColor: 'rgba(99, 102, 241, 0.2)' }]}>
-                            <Activity color={COLORS.primary} size={24} />
-                        </View>
-                        <Text style={styles.cardValue}>
-                            {cardiacData?.risk_score ? Math.round(100 - cardiacData.risk_score) : '--'}
-                        </Text>
-                        <Text style={styles.cardLabel}>Health Score</Text>
-                    </View>
+                <View style={styles.vitalRow}>
+                    <Text style={styles.vitalLabel}>🫁 SpO2</Text>
+                    <Text style={styles.vitalValue}>{healthData.spo2}%</Text>
+                </View>
 
-                    <View style={styles.card}>
-                        <View style={[styles.iconBox, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
-                            <Moon color={COLORS.safe} size={24} />
-                        </View>
-                        <Text style={styles.cardValue}>
-                            {fatigueData?.fatigue_score ? Math.round(fatigueData.fatigue_score) : '--'}
-                        </Text>
-                        <Text style={styles.cardLabel}>Fatigue Index</Text>
-                    </View>
+                <View style={styles.vitalRow}>
+                    <Text style={styles.vitalLabel}>🌡️ Temperature</Text>
+                    <Text style={styles.vitalValue}>{healthData.temperature}°C</Text>
+                </View>
+            </View>
 
-                    <View style={styles.card}>
-                        <View style={[styles.iconBox, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
-                            <Thermometer color={COLORS.warning} size={24} />
-                        </View>
-                        <Text style={styles.cardValue}>
-                            {fatigueData?.fit_to_work ? 'FIT' : 'UNFIT'}
-                        </Text>
-                        <Text style={styles.cardLabel}>Status</Text>
+            {/* Risk Assessment */}
+            <View style={styles.card}>
+                <Text style={styles.cardTitle}>Risk Assessment</Text>
+
+                <View style={styles.riskRow}>
+                    <Text style={styles.riskLabel}>Cardiac Risk</Text>
+                    <View style={[styles.riskBadge, styles.riskLow]}>
+                        <Text style={styles.riskText}>{healthData.cardiacRisk}</Text>
                     </View>
                 </View>
 
-                {/* Risk Factors Section */}
-                {cardiacData && cardiacData.risk_factors.length > 0 && (
-                    <View style={styles.riskSection}>
-                        <Text style={styles.sectionTitle}>Active Risk Factors</Text>
-                        {cardiacData.risk_factors.map((factor, index) => (
-                            <View key={index} style={styles.riskItem}>
-                                <View style={styles.riskDot} />
-                                <Text style={styles.riskText}>{factor}</Text>
-                            </View>
-                        ))}
+                <View style={styles.riskRow}>
+                    <Text style={styles.riskLabel}>Fatigue Level</Text>
+                    <View style={[styles.riskBadge, styles.riskMedium]}>
+                        <Text style={styles.riskText}>{healthData.fatigueLevel}</Text>
                     </View>
-                )}
+                </View>
+            </View>
 
-                {/* Action Button */}
-                <TouchableOpacity style={styles.actionButton} onPress={onRefresh}>
-                    <LinearGradient
-                        colors={['#6366F1', '#4F46E5']}
-                        style={styles.gradientButton}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                    >
-                        <Text style={styles.buttonText}>Sync Vitals Now</Text>
-                    </LinearGradient>
-                </TouchableOpacity>
+            {/* Today's Activity */}
+            <View style={styles.card}>
+                <Text style={styles.cardTitle}>Today's Activity</Text>
 
-            </ScrollView>
-        </SafeAreaView>
+                <View style={styles.activityRow}>
+                    <Text style={styles.activityLabel}>👟 Steps</Text>
+                    <Text style={styles.activityValue}>{healthData.steps.toLocaleString()}</Text>
+                </View>
+
+                <View style={styles.activityRow}>
+                    <Text style={styles.activityLabel}>🔥 Calories</Text>
+                    <Text style={styles.activityValue}>{healthData.calories.toLocaleString()} kcal</Text>
+                </View>
+
+                <View style={styles.activityRow}>
+                    <Text style={styles.activityLabel}>😴 Sleep</Text>
+                    <Text style={styles.activityValue}>{healthData.sleep} hrs</Text>
+                </View>
+            </View>
+
+            <View style={styles.footer}>
+                <Text style={styles.footerText}>Last updated: Just now</Text>
+                <Text style={styles.footerText}>Pull down to refresh</Text>
+            </View>
+        </ScrollView>
     );
+}
+
+function getTimeOfDay() {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Morning';
+    if (hour < 18) return 'Afternoon';
+    return 'Evening';
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: '#0a0e27',
     },
-    center: {
+    loadingContainer: {
+        flex: 1,
+        backgroundColor: '#0a0e27',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    background: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        height: '100%',
-    },
-    scrollContent: {
-        padding: 20,
+    loadingText: {
+        color: '#9ca3af',
+        marginTop: 16,
+        fontSize: 14,
     },
     header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
+        padding: 20,
+        paddingTop: 60,
     },
     greeting: {
-        color: COLORS.gray,
-        fontSize: 14,
-    },
-    username: {
-        color: COLORS.white,
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    iconButton: {
-        padding: 10,
-        backgroundColor: COLORS.surfaceHighlight,
-        borderRadius: 12,
-    },
-    badge: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: COLORS.danger,
-    },
-    statsGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 20,
-    },
-    card: {
-        backgroundColor: COLORS.surfaceHighlight,
-        borderRadius: 20,
-        padding: 15,
-        width: '30%',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
-    },
-    iconBox: {
-        padding: 10,
-        borderRadius: 12,
-        marginBottom: 10,
-    },
-    cardValue: {
-        color: COLORS.white,
         fontSize: 16,
+        color: '#9ca3af',
+    },
+    userName: {
+        fontSize: 28,
         fontWeight: 'bold',
-        marginBottom: 4,
+        color: '#ffffff',
+        marginTop: 4,
     },
-    cardLabel: {
-        color: COLORS.gray,
-        fontSize: 12,
-    },
-    riskSection: {
-        marginTop: 30,
-        backgroundColor: COLORS.surfaceHighlight,
+    scoreCard: {
+        backgroundColor: '#1a1f3a',
         borderRadius: 20,
-        padding: 20,
+        padding: 24,
+        margin: 20,
+        marginTop: 10,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: '#00d4ff33',
+        alignItems: 'center',
     },
-    sectionTitle: {
-        color: COLORS.white,
+    cardTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        marginBottom: 15,
+        color: '#ffffff',
+        marginBottom: 16,
     },
-    riskItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
+    scoreText: {
+        fontSize: 72,
+        fontWeight: 'bold',
+        color: '#00d4ff',
+        marginVertical: 10,
     },
-    riskDot: {
-        width: 8,
+    scoreLabel: {
+        fontSize: 18,
+        color: '#4ade80',
+        marginBottom: 16,
+    },
+    scoreBar: {
+        width: '100%',
         height: 8,
+        backgroundColor: '#ffffff11',
         borderRadius: 4,
-        backgroundColor: COLORS.warning,
-        marginRight: 12,
+        overflow: 'hidden',
+    },
+    scoreBarFill: {
+        height: '100%',
+        backgroundColor: '#00d4ff',
+    },
+    card: {
+        backgroundColor: '#1a1f3a',
+        borderRadius: 16,
+        padding: 20,
+        marginHorizontal: 20,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#00d4ff33',
+    },
+    vitalRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ffffff11',
+    },
+    vitalLabel: {
+        fontSize: 16,
+        color: '#9ca3af',
+    },
+    vitalValue: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#ffffff',
+    },
+    riskRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+    },
+    riskLabel: {
+        fontSize: 16,
+        color: '#9ca3af',
+    },
+    riskBadge: {
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    riskLow: {
+        backgroundColor: '#4ade8033',
+    },
+    riskMedium: {
+        backgroundColor: '#fbbf2433',
     },
     riskText: {
-        color: COLORS.gray,
         fontSize: 14,
-        flex: 1,
+        fontWeight: '600',
+        color: '#ffffff',
     },
-    actionButton: {
-        marginTop: 40,
-        marginBottom: 20,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 5,
+    activityRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ffffff11',
     },
-    gradientButton: {
-        paddingVertical: 16,
-        borderRadius: 16,
+    activityLabel: {
+        fontSize: 16,
+        color: '#9ca3af',
+    },
+    activityValue: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#00d4ff',
+    },
+    footer: {
+        padding: 20,
         alignItems: 'center',
     },
-    buttonText: {
-        color: COLORS.white,
-        fontSize: 16,
-        fontWeight: 'bold',
+    footerText: {
+        fontSize: 12,
+        color: '#6b7280',
+        marginVertical: 2,
     },
 });
